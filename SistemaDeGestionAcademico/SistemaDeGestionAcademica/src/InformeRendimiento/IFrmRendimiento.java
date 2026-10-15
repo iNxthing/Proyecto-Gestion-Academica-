@@ -4,9 +4,15 @@
  */
 package InformeRendimiento;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
 import javax.swing.JOptionPane;
 import javax.swing.table.DefaultTableModel;
-import sistemadegestionacademica.Estudiante;
+import sistemadegestionacademica.infoConexion;
 
 /**
  *
@@ -17,12 +23,11 @@ public class IFrmRendimiento extends javax.swing.JInternalFrame {
     /**
      * Creates new form IFrmRendimiento
      */
-    DefaultTableModel modeloTabla;
+    infoConexion conexion;
     public IFrmRendimiento() {
         initComponents();
-        String [] encabezado = {"Estudiante","Grado","Promedio","Estado"};
-        modeloTabla = new DefaultTableModel(encabezado,0);
-        jTable1.setModel(modeloTabla);
+        conexion = new infoConexion();
+        cargarEncabezados();
         txtNotaMinima.setText("");
     }
 
@@ -102,6 +107,24 @@ public class IFrmRendimiento extends javax.swing.JInternalFrame {
         mostrarRendimiento();
     }//GEN-LAST:event_btnMostrarActionPerformed
 
+    private void cargarEncabezados(){
+    try (Connection con = DriverManager.getConnection(conexion.getUrl(),
+            conexion.getUsername(), conexion.getPassword())){
+        PreparedStatement pstm = con.prepareCall("call sp_promedio_estudiantes(?)");
+        pstm.setDouble(1, 0);
+        ResultSet rs = pstm.executeQuery();
+        ResultSetMetaData rsmt = rs.getMetaData();
+        DefaultTableModel modelo = new DefaultTableModel();
+        for (int i = 1; i <= rsmt.getColumnCount(); i++) {
+            modelo.addColumn(rsmt.getColumnLabel(i));
+        }
+        jTable1.setModel(modelo);
+    } catch (SQLException e) {
+        JOptionPane.showMessageDialog(this, "Error de la base de datos: " + e.getMessage());
+    }
+}
+    
+    
     public void mostrarRendimiento(){
         String texto = txtNotaMinima.getText().trim();
 
@@ -121,25 +144,37 @@ public class IFrmRendimiento extends javax.swing.JInternalFrame {
             JOptionPane.showMessageDialog(this, "La nota debe estar entre 0 y 5");
             return;
         }
+        
 
-        if (Estudiante.obtenerEstudiantes().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "No hay estudiantes registrados");
-            return;
-        }
-
-        modeloTabla.setRowCount(0);
-        for (Estudiante e : Estudiante.obtenerEstudiantes()) {
-            double promedio = Math.round(e.calcularPromedio() * 100.0) / 100.0;
-            String estado;
-            if (e.aprobo(notaMinima)) {
-                estado = "Aprobó";
-            } else {
-                estado = "Reprobó";
+        
+        try(Connection con = DriverManager.getConnection(conexion.getUrl(),
+                conexion.getUsername(), conexion.getPassword())){
+            
+            DefaultTableModel modelo = new DefaultTableModel();
+            PreparedStatement pstm = con.prepareCall("call sp_promedio_estudiantes(?)");
+            pstm.setDouble(1, notaMinima);
+            ResultSet rs = pstm.executeQuery();
+            ResultSetMetaData rsmt = rs.getMetaData();
+            for (int i = 1; i <= rsmt.getColumnCount(); i++) {
+                modelo.addColumn(rsmt.getColumnLabel(i));
+            } 
+            while (rs.next()) {                
+                modelo.addRow(new Object []{
+                    rs.getString("Estudiante"),
+                    rs.getString("Grado"),
+                    rs.getString("Promedio"),
+                    rs.getString("Estado"),
+                });
             }
-            modeloTabla.addRow(new Object[]{
-                e.getNombreEstudiante(), e.getGradoEstudiante(), promedio, estado
-            });
+            jTable1.setModel(modelo); 
+            if (modelo.getRowCount() == 0) {
+                JOptionPane.showMessageDialog(this, "No hay estudiantes registrados");
+            }
+        }catch(SQLException e){
+            JOptionPane.showMessageDialog(this, "Error de la base de datos");
         }
+        
+        
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables

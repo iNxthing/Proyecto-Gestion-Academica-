@@ -4,8 +4,12 @@
  */
 package sistemadegestionacademica;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
 import javax.swing.JOptionPane;
 import javax.swing.table.DefaultTableModel;
 
@@ -20,19 +24,14 @@ public class IFrmAdministrar extends javax.swing.JInternalFrame {
     /**
      * Creates new form IFrmAdministrar
      */
-    
-    DefaultTableModel modeloTabla;
+    infoConexion conexion;
     public IFrmAdministrar() {
         initComponents();
-        String [] encabezado = {"Estudiante","Grado","Asignatura","periodo","Nota"};
-        modeloTabla = new DefaultTableModel(encabezado,0);
-        jTable1.setModel(modeloTabla);
+        conexion = new infoConexion();
         txtNombreEstudiante.setText("");
         txtValor.setText("");
         llenarCombo();
-        
-        Estudiante e = Estudiante.crearEstudiante("Darwin", "Grado 1");
-        e.agregarNota("Tecnologia", "Periodo 1", 4);
+        CargarTabla();
     }
 
     /**
@@ -246,18 +245,61 @@ public class IFrmAdministrar extends javax.swing.JInternalFrame {
             JOptionPane.showMessageDialog(this, "La nota debe estar entre 0 y 5");
             return;
         }
-        
-        Estudiante e = Estudiante.buscarPorNombre(nombre);
-        if (e == null) {
-            e = Estudiante.crearEstudiante(nombre, grado);
+        try (Connection con = DriverManager.getConnection(conexion.getUrl(),
+            conexion.getUsername(), conexion.getPassword())) {
+            
+            
+            
+            
+            PreparedStatement pstmGuardarEstudiante = con.prepareCall("call sp_registrar_estudiante(?, ?)");   
+            pstmGuardarEstudiante.setString(1, nombre);
+            pstmGuardarEstudiante.setString(2, grado);
+            
+            pstmGuardarEstudiante.execute();
+            
+            PreparedStatement pstmGuardarNotaE = con.prepareCall("call sp_registrar_nota(?,?,?,?)");
+            pstmGuardarNotaE.setString(1, nombre);
+            pstmGuardarNotaE.setString(2, asignatura);
+            pstmGuardarNotaE.setString(3, periodo);
+            pstmGuardarNotaE.setDouble(4, valor);
+            pstmGuardarNotaE.execute();
+            CargarTabla();
+            
+            
+        }catch(SQLException e){
+            JOptionPane.showMessageDialog(this, "Error de la base de datos" + e);
+        }
+
+    }
+    
+    public void CargarTabla(){
+        try (Connection con = DriverManager.getConnection(conexion.getUrl(),
+            conexion.getUsername(), conexion.getPassword())) {
+            
+            DefaultTableModel modeloTabla = new DefaultTableModel();
+            PreparedStatement pstm = con.prepareCall("call sp_mostrar_todo()");
+            
+            ResultSet rs = pstm.executeQuery();
+            ResultSetMetaData rsmt = rs.getMetaData();
+            for(int i =1; i<= rsmt.getColumnCount(); i++){
+                modeloTabla.addColumn(rsmt.getColumnLabel(i));
+            }
+            while (rs.next()) {                
+                modeloTabla.addRow(new Object []{
+                    rs.getString("Id"),
+                    rs.getString("Estudiante"),
+                    rs.getString("Grado"),
+                    rs.getString("Asignatura"),
+                    rs.getString("Periodo"),
+                    rs.getString("Nota")
+                    
+                });
+            }
+            jTable1.setModel(modeloTabla);
+        }catch(SQLException e){
+            JOptionPane.showMessageDialog(this, "Error de la base de datos" + e);
         }
         
-        
-        
-        e.agregarNota(asignatura, periodo, valor);            
-        JOptionPane.showMessageDialog(this, "Estudiante y Nota Agregados");
-
-        modeloTabla.addRow(new Object[]{nombre,grado,asignatura,periodo,valor});
     }
     
     public void Limpiar(){
@@ -269,12 +311,17 @@ public class IFrmAdministrar extends javax.swing.JInternalFrame {
     private void llenarCombo(){
         comboAsignaturas.removeAllItems();
         comboAsignaturas.addItem("Seleccione...");
-        
-        for (String a : Notas.listarAsignaturas()) {
-            comboAsignaturas.addItem(a);
+        try (Connection con = DriverManager.getConnection(conexion.getUrl(),
+                    conexion.getUsername(), conexion.getPassword())) {
+            PreparedStatement pstm = con.prepareCall("call sp_listar_asignaturas()");
+            ResultSet rs = pstm.executeQuery();
+            while (rs.next()) {                
+                comboAsignaturas.addItem(rs.getString("nombre"));
+            }
+            
+        }catch(SQLException e){
+            JOptionPane.showMessageDialog(this, "Error de la base de datos");
         }
-        
-        
         
     }
 

@@ -3,10 +3,16 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/GUIForms/JInternalFrame.java to edit this template
  */
 package InformeEstudiantesPorGrado;
-import java.util.List;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.sql.Statement;
 import javax.swing.JOptionPane;
 import javax.swing.table.DefaultTableModel;
-import sistemadegestionacademica.Estudiante;
+import sistemadegestionacademica.infoConexion;
 
 /**
  *
@@ -17,12 +23,11 @@ public class IFrmEstudiantesPorGrado extends javax.swing.JInternalFrame {
     /**
      * Creates new form IFrmEstudiantesPorGrado
      */
-    DefaultTableModel modeloTabla;
+    infoConexion conexion;
     public IFrmEstudiantesPorGrado() {
         initComponents();
-        String [] encabezado = {"Estudiante","Grado"};
-        modeloTabla = new DefaultTableModel(encabezado,0);
-        jTable1.setModel(modeloTabla);
+        conexion = new infoConexion();
+        cargarEncabezados();
     }
 
     /**
@@ -119,12 +124,46 @@ public class IFrmEstudiantesPorGrado extends javax.swing.JInternalFrame {
             JOptionPane.showMessageDialog(this, "Seleccione un Grado a buscar");
         }
     }//GEN-LAST:event_btnBuscarActionPerformed
+    
+    private void cargarEncabezados(){
+    try (Connection con = DriverManager.getConnection(conexion.getUrl(),
+            conexion.getUsername(), conexion.getPassword())){
+
+        PreparedStatement pstm = con.prepareCall("call sp_estudiantes_por_grado(?)");
+        pstm.setString(1, "");
+        ResultSet rs = pstm.executeQuery();
+        ResultSetMetaData rsmt = rs.getMetaData();
+        DefaultTableModel modelo = new DefaultTableModel();
+        for (int i = 1; i <= rsmt.getColumnCount(); i++) {
+            modelo.addColumn(rsmt.getColumnLabel(i));
+        }
+        jTable1.setModel(modelo);
+    } catch (SQLException e) {
+        JOptionPane.showMessageDialog(this, "Error de la base de datos: " + e.getMessage());
+    }
+}
+    
+    
     private void mostrarEstudiantesPorGrado(String nombreGrado){
-        modeloTabla.setRowCount(0);
-        List<Estudiante> filtrado = Estudiante.filtrarPorGrado(nombreGrado);
-        
-        for (Estudiante e : filtrado) {
-            modeloTabla.addRow(new Object []{e.getNombreEstudiante(),e.getGradoEstudiante()});
+        try(Connection con = DriverManager.getConnection(conexion.getUrl(),
+                conexion.getUsername(), conexion.getPassword())){
+            
+            DefaultTableModel modelo = new DefaultTableModel();
+            
+            Statement stm = con.createStatement();
+            PreparedStatement pstm = con.prepareCall("call sp_estudiantes_por_grado(?)");
+            pstm.setString(1, nombreGrado);
+            ResultSet rs = pstm.executeQuery();
+            ResultSetMetaData rsmt = rs.getMetaData();
+            for(int i =1; i<= rsmt.getColumnCount(); i++){
+                modelo.addColumn(rsmt.getColumnLabel(i));
+            }
+            while (rs.next()) {                
+                modelo.addRow(new Object[]{rs.getString("Estudiante"),rs.getString("Grado")});
+            }
+            jTable1.setModel(modelo); 
+        }catch(SQLException e){
+            JOptionPane.showMessageDialog(this, "Error de la base de datos" + e);
         }
         
     }

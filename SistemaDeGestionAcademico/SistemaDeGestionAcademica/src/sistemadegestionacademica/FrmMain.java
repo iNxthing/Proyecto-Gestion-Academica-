@@ -30,7 +30,6 @@ public class FrmMain extends javax.swing.JFrame {
         this.profile = profile;
         this.user = user;
         initComponents();
-        datosIniciales();
         
         if(profile == 1){
             menuAdministrar.setVisible(true);
@@ -118,44 +117,7 @@ public class FrmMain extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
     
     
-    private void datosIniciales() {
-        if (!Estudiante.obtenerEstudiantes().isEmpty()) {
-            return;
-        }
-        
-        Notas.agregarAsignatura("Matematicas");
-        Notas.agregarAsignatura("Ciencias");
-        Notas.agregarAsignatura("Ingles");
-        Notas.agregarAsignatura("Tecnologia");
-        
-        Estudiante ana = Estudiante.crearEstudiante("Cesar Reguillo", "Grado 1");
-        ana.agregarNota("Matematicas", "Periodo 1", 4.5);
-        ana.agregarNota("Matematicas", "Periodo 2", 4.0);
-        ana.agregarNota("Ingles", "Periodo 1", 3.8);
 
-        Estudiante luis = Estudiante.crearEstudiante("Luis Gonzales", "Grado 2");
-        luis.agregarNota("Matematicas", "Periodo 1", 2.5);
-        luis.agregarNota("Ciencias", "Periodo 1", 2.9);
-        luis.agregarNota("Tecnologia", "Periodo 2", 2.2);
-
-        Estudiante marta = Estudiante.crearEstudiante("Edgar Rolon", "Grado 1");
-        marta.agregarNota("Ciencias", "Periodo 1", 3.2);
-        marta.agregarNota("Ciencias", "Periodo 2", 4.8);
-        marta.agregarNota("Tecnologia", "Periodo 3", 5.0);
-
-        Estudiante darwin = Estudiante.crearEstudiante("Darwin Garcia", "Grado 3");
-        darwin.agregarNota("Tecnologia", "Periodo 1", 5.0);
-        darwin.agregarNota("Tecnologia", "Periodo 2", 4.0);
-        darwin.agregarNota("Tecnologia", "Periodo 3", 4.4);
-        
-        Estudiante jorley = Estudiante.crearEstudiante("Jorley Toloza", "Grado 3");
-        jorley.agregarNota("Tecnologia", "Periodo 1", 4.0);
-        jorley.agregarNota("Tecnologia", "Periodo 2", 4.0);
-        jorley.agregarNota("Tecnologia", "Periodo 3", 4.0);
-        
-            
-        
-    }
     
     
     private void menuEstudiantesPorGradoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menuEstudiantesPorGradoActionPerformed

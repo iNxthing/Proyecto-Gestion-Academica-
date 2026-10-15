@@ -4,11 +4,16 @@
  */
 package InformeCalificaciones;
 
-import java.util.List;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.sql.Statement;
 import javax.swing.JOptionPane;
 import javax.swing.table.DefaultTableModel;
-import sistemadegestionacademica.Estudiante;
-import sistemadegestionacademica.Notas;
+import sistemadegestionacademica.infoConexion;
 
 /**
  *
@@ -19,13 +24,12 @@ public class IframeCalificaciones extends javax.swing.JInternalFrame {
     /**
      * Creates new form IframeCalificaciones
      */
-    DefaultTableModel modeloTabla;
+    infoConexion conexion;
     public IframeCalificaciones() {
         initComponents();
+        conexion = new infoConexion();
+        cargarEncabezados();
         llenarCombos();
-        String [] encabezado = {"Estudiante","Asignatura","periodo","Nota"};
-        modeloTabla = new DefaultTableModel(encabezado,0);
-        jTable1.setModel(modeloTabla);
     }
 
     /**
@@ -138,6 +142,26 @@ public class IframeCalificaciones extends javax.swing.JInternalFrame {
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
+    private void cargarEncabezados(){
+    try (Connection con = DriverManager.getConnection(conexion.getUrl(),
+            conexion.getUsername(), conexion.getPassword())){
+        PreparedStatement pstm = con.prepareCall("call sp_notas_por_asignatura_periodo(?, ?, ?)");
+        pstm.setString(1, "");
+        pstm.setString(2, "");
+        pstm.setString(3, "");
+        ResultSet rs = pstm.executeQuery();
+        ResultSetMetaData rsmt = rs.getMetaData();
+        DefaultTableModel modelo = new DefaultTableModel();
+        for (int i = 1; i <= rsmt.getColumnCount(); i++) {
+            modelo.addColumn(rsmt.getColumnLabel(i));
+        }
+        jTable1.setModel(modelo);
+    } catch (SQLException e) {
+        JOptionPane.showMessageDialog(this, "Error de la base de datos: " + e.getMessage());
+    }
+}
+    
+    
     private void btnMostrarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnMostrarActionPerformed
         // TODO add your handling code here:
         String periodo = null;
@@ -149,7 +173,6 @@ public class IframeCalificaciones extends javax.swing.JInternalFrame {
             periodo = "Periodo 3";
         }
 
-        // 2. VALIDAR
         if (comboEstudiante.getSelectedIndex() == 0) {
             JOptionPane.showMessageDialog(this, "Seleccione un estudiante");
             return;
@@ -163,36 +186,68 @@ public class IframeCalificaciones extends javax.swing.JInternalFrame {
             return;
         }
 
-        String nombre = String.valueOf(comboEstudiante.getSelectedItem());
+        String estudiante = String.valueOf(comboEstudiante.getSelectedItem());
         String asignatura = String.valueOf(comboAsignatura.getSelectedItem());
 
-        Estudiante e = Estudiante.buscarPorNombre(nombre);
-        List<Notas> lista = e.filtrarNotas(asignatura, periodo);
+        try (Connection con = DriverManager.getConnection(conexion.getUrl(),
+                conexion.getUsername(), conexion.getPassword())){
+            
+            DefaultTableModel modelo = new DefaultTableModel();
+            PreparedStatement pstm = con.prepareCall("call sp_notas_por_asignatura_periodo(?, ?, ?)");
+            pstm.setString(1, estudiante);
+            pstm.setString(2, asignatura);
+            pstm.setString(3, periodo);
+            ResultSet rs = pstm.executeQuery();
+            ResultSetMetaData rsmt = rs.getMetaData();
+            for(int i =1; i<= rsmt.getColumnCount(); i++){
+                modelo.addColumn(rsmt.getColumnLabel(i));
+            }
+            
+            
+            
+            while (rs.next()) {
+                modelo.addRow(new Object[]{
+                    rs.getString("Estudiante"),
+                    rs.getString("Asignatura"),
+                    rs.getString("Periodo"),
+                    rs.getDouble("Nota")
+                });
+            }
+            jTable1.setModel(modelo); 
+            if (modelo.getRowCount() == 0) {
+                JOptionPane.showMessageDialog(this, "Sin calificaciones para esa selección");
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Error de la base de datos: " + e.getMessage());
+        }
 
-        modeloTabla.setRowCount(0);
-        for (Notas n : lista) {
-            modeloTabla.addRow(new Object[]{
-                e.getNombreEstudiante(), n.getAsignatura(), n.getPeriodo(), n.getValor()
-            });
-        }
-        if (lista.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Sin calificaciones para esa selección");
-        }
+        
     }//GEN-LAST:event_btnMostrarActionPerformed
     
     
     private void llenarCombos(){
-        comboEstudiante.removeAllItems();
-        comboEstudiante.addItem("Seleccione...");
-        for (Estudiante e : Estudiante.obtenerEstudiantes()) {
-            comboEstudiante.addItem(e.getNombreEstudiante());
-        }
+       comboEstudiante.removeAllItems();
+       comboEstudiante.addItem("Seleccione...");
+       comboAsignatura.removeAllItems();
+       comboAsignatura.addItem("Seleccione...");
+       try (Connection con = DriverManager.getConnection(conexion.getUrl(),
+               conexion.getUsername(), conexion.getPassword())) {
 
-        comboAsignatura.removeAllItems();
-        comboAsignatura.addItem("Seleccione...");
-        for (String a : Notas.listarAsignaturas()) {
-            comboAsignatura.addItem(a);
-        }
+           try (PreparedStatement pstm = con.prepareCall("call sp_listar_estudiantes()")) {
+               ResultSet rs = pstm.executeQuery();
+               while (rs.next()) {
+                   comboEstudiante.addItem(rs.getString("nombre"));
+               }
+           }
+           try (PreparedStatement pstm = con.prepareCall("call sp_listar_asignaturas()")) {
+               ResultSet rs = pstm.executeQuery();
+               while (rs.next()) {
+                   comboAsignatura.addItem(rs.getString("nombre"));
+               }
+           }
+       } catch (SQLException e) {
+           JOptionPane.showMessageDialog(this, "Error de la base de datos: " + e.getMessage());
+       }
           
     }
     
