@@ -257,11 +257,12 @@ public class IFrmAdministrar extends javax.swing.JInternalFrame {
             
             pstmGuardarEstudiante.execute();
             
-            PreparedStatement pstmGuardarNotaE = con.prepareCall("call sp_registrar_nota(?,?,?,?)");
+            PreparedStatement pstmGuardarNotaE = con.prepareCall("call sp_registrar_nota(?,?,?,?,?)");
             pstmGuardarNotaE.setString(1, nombre);
-            pstmGuardarNotaE.setString(2, asignatura);
-            pstmGuardarNotaE.setString(3, periodo);
-            pstmGuardarNotaE.setDouble(4, valor);
+            pstmGuardarNotaE.setString(2, grado);
+            pstmGuardarNotaE.setString(3, asignatura);
+            pstmGuardarNotaE.setString(4, periodo);
+            pstmGuardarNotaE.setDouble(5, valor);
             pstmGuardarNotaE.execute();
             CargarTabla();
             

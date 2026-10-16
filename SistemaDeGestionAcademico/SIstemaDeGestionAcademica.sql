@@ -25,8 +25,9 @@ CREATE TABLE periodo (
 
 CREATE TABLE estudiante (
     id_estudiante INT AUTO_INCREMENT PRIMARY KEY,
-    nombre        VARCHAR(100) NOT NULL UNIQUE,
+    nombre        VARCHAR(100) NOT NULL,
     id_grado      INT NOT NULL,
+    UNIQUE (nombre, id_grado),   -- mismo nombre en otro grado = otro registro
     FOREIGN KEY (id_grado) REFERENCES grado(id_grado)
 );
 
@@ -89,11 +90,13 @@ CREATE PROCEDURE sp_notas_por_asignatura_periodo(
 )
 BEGIN
     SELECT e.nombre AS Estudiante,
+           g.nombre AS Grado,
            a.nombre AS Asignatura,
            p.nombre AS Periodo,
            n.valor  AS Nota
     FROM nota n
     JOIN estudiante e ON e.id_estudiante = n.id_estudiante
+    JOIN grado g      ON g.id_grado      = e.id_grado
     JOIN asignatura a ON a.id_asignatura = n.id_asignatura
     JOIN periodo p    ON p.id_periodo    = n.id_periodo
     WHERE e.nombre = p_estudiante
@@ -129,7 +132,7 @@ BEGIN
     HAVING AVG(n.valor) < p_limite;
 END$$
 
--- 5) Registrar un estudiante
+-- 5) Registrar un estudiante (si ya existe en ese grado, no hace nada)
 --    Uso: CALL sp_registrar_estudiante('Laura', 'Grado 2');
 CREATE PROCEDURE sp_registrar_estudiante(
     IN p_nombre VARCHAR(100),
@@ -141,9 +144,10 @@ BEGIN
 END$$
 
 -- 6) Registrar una nota
---    Uso: CALL sp_registrar_nota('Cesar Reguillo', 'Ciencias', 'Periodo 3', 4.5);
+--    Uso: CALL sp_registrar_nota('Cesar Reguillo', 'Grado 1', 'Ciencias', 'Periodo 3', 4.5);
 CREATE PROCEDURE sp_registrar_nota(
     IN p_estudiante VARCHAR(100),
+    IN p_grado      VARCHAR(30),
     IN p_asignatura VARCHAR(50),
     IN p_periodo    VARCHAR(30),
     IN p_valor      DECIMAL(3,2)
@@ -151,10 +155,12 @@ CREATE PROCEDURE sp_registrar_nota(
 BEGIN
     INSERT INTO nota (id_estudiante, id_asignatura, id_periodo, valor)
     SELECT e.id_estudiante, a.id_asignatura, p.id_periodo, p_valor
-    FROM estudiante e, asignatura a, periodo p
+    FROM estudiante e
+    JOIN grado g ON g.id_grado = e.id_grado
+    JOIN asignatura a ON a.nombre = p_asignatura
+    JOIN periodo p    ON p.nombre = p_periodo
     WHERE e.nombre = p_estudiante
-      AND a.nombre = p_asignatura
-      AND p.nombre = p_periodo;
+      AND g.nombre = p_grado;
 END$$
 
 -- 7) Listar asignaturas (para llenar los combos)
@@ -168,7 +174,7 @@ END$$
 --    Uso: CALL sp_listar_estudiantes();
 CREATE PROCEDURE sp_listar_estudiantes()
 BEGIN
-    SELECT nombre FROM estudiante ORDER BY nombre;
+    SELECT DISTINCT nombre FROM estudiante ORDER BY nombre;
 END$$
 
 -- 9) Mostrar todo (solo para pruebas): estudiantes con sus notas
@@ -190,3 +196,4 @@ BEGIN
 END$$
 
 DELIMITER ;
+call sp_mostrar_todo();
